@@ -34,6 +34,25 @@ app.get("/whatsapp/status", (req: Request, res: Response) => {
   res.json(status);
 });
 
+// Get QR Code
+app.get("/whatsapp/qr", (req: Request, res: Response) => {
+  const qrCode = whatsappService.getCurrentQRCode();
+
+  if (qrCode) {
+    res.json({
+      success: true,
+      qrCode: qrCode,
+      message: "QR Code available for scanning"
+    });
+  } else {
+    res.json({
+      success: false,
+      qrCode: null,
+      message: "QR Code not available. Try connecting first."
+    });
+  }
+});
+
 // Connect WhatsApp
 app.post("/whatsapp/connect", async (req: Request, res: Response) => {
   try {
