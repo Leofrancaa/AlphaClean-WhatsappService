@@ -187,6 +187,53 @@ app.post("/whatsapp/test", async (req: Request, res: Response) => {
   }
 });
 
+// Debug endpoint
+app.get("/whatsapp/debug", (req: Request, res: Response) => {
+  try {
+    const status = whatsappService.getConnectionStatus();
+    const qrCode = whatsappService.getCurrentQRCode();
+
+    res.json({
+      success: true,
+      debug: {
+        timestamp: new Date().toISOString(),
+        status: status,
+        hasQRCode: !!qrCode,
+        qrCodeLength: qrCode ? qrCode.length : 0,
+        // Raw internal state (for debugging only)
+        internal: {
+          isConnected: (whatsappService as any).isConnected,
+          isReady: (whatsappService as any).isReady,
+          isInitializing: (whatsappService as any).isInitializing,
+          hasClient: !!(whatsappService as any).client,
+          qrTimestamp: (whatsappService as any).qrCodeTimestamp
+        }
+      }
+    });
+  } catch (error) {
+    console.error("Debug endpoint error:", error);
+    res.status(500).json({ error: "Debug failed" });
+  }
+});
+
+// Force reconnect endpoint
+app.post("/whatsapp/force-reconnect", async (req: Request, res: Response) => {
+  try {
+    console.log("🔄 Force reconnect requested");
+    await whatsappService.disconnect();
+    await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2s
+    await whatsappService.initialize();
+
+    res.json({
+      success: true,
+      message: "Force reconnect initiated"
+    });
+  } catch (error) {
+    console.error("Force reconnect error:", error);
+    res.status(500).json({ error: "Force reconnect failed" });
+  }
+});
+
 // Keep service alive (prevent Render hibernation)
 if (process.env.NODE_ENV === 'production') {
   setInterval(() => {

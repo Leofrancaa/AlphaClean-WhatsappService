@@ -327,17 +327,41 @@ Se precisar reagendar ou tiver alguma dúvida, entre em contato conosco.
   private startKeepAlive(): void {
     this.stopKeepAlive();
     this.keepAliveInterval = setInterval(async () => {
-      if (this.isReady && this.client) {
+      if (this.client) {
         try {
-          await this.client.getState();
-          console.log('💓 Keep-alive: Conexão ativa');
+          const state = await this.client.getState();
+          console.log('💓 Keep-alive: Estado atual =', state);
+
+          // Update connection status based on actual state
+          if (state === 'CONNECTED') {
+            if (!this.isConnected || !this.isReady) {
+              console.log('✅ WhatsApp reconectado automaticamente!');
+              this.isConnected = true;
+              this.isReady = true;
+              this.qrCodeGenerated = null;
+              this.qrCodeTimestamp = null;
+              this.reconnectAttempts = 0;
+            }
+          } else if (state === 'OPENING') {
+            this.isConnected = true;
+            this.isReady = false;
+          } else {
+            if (this.isConnected || this.isReady) {
+              console.log('⚠️ WhatsApp desconectado detectado via keep-alive');
+              this.isConnected = false;
+              this.isReady = false;
+            }
+          }
         } catch (error) {
           console.log('❌ Keep-alive falhou:', error);
-          this.isConnected = false;
-          this.isReady = false;
+          if (this.isConnected || this.isReady) {
+            console.log('⚠️ Marcando como desconectado devido a erro');
+            this.isConnected = false;
+            this.isReady = false;
+          }
         }
       }
-    }, 30000);
+    }, 15000); // Check every 15s
   }
 
   private stopKeepAlive(): void {
