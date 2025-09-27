@@ -13,7 +13,11 @@ const PORT = process.env.PORT || 3002;
 // Middlewares
 app.use(helmet());
 app.use(cors({
-  origin: process.env.MAIN_API_URL || "http://localhost:3001",
+  origin: [
+    process.env.MAIN_API_URL || "http://localhost:3001",
+    "https://alpha-clean-pearl.vercel.app",
+    "http://localhost:3000"
+  ],
   credentials: true
 }));
 app.use(morgan("combined"));
