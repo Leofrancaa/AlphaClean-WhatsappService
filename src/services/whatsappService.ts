@@ -89,6 +89,14 @@ class WhatsAppService {
         console.log('🔐 WhatsApp autenticado com sucesso!');
         this.isConnected = true;
         this.isInitializing = false;
+
+        // Force check ready state after authentication
+        setTimeout(() => {
+          if (this.client && this.isConnected && !this.isReady) {
+            console.log('🔄 Forçando verificação de estado após autenticação...');
+            this.checkReadyState();
+          }
+        }, 3000);
       });
 
       // Evento de falha de autenticação
@@ -120,6 +128,36 @@ class WhatsAppService {
       // Evento de mensagem recebida (opcional - para logs)
       this.client.on('message', (message: any) => {
         console.log('📩 Mensagem recebida de:', message.from);
+
+        // If we receive a message, we're definitely connected and ready
+        if (!this.isReady) {
+          console.log('✅ Mensagem recebida - WhatsApp está pronto!');
+          this.isReady = true;
+          this.isConnected = true;
+          this.qrCodeGenerated = null;
+          this.qrCodeTimestamp = null;
+        }
+      });
+
+      // Evento de mudança de estado
+      this.client.on('change_state', (state: string) => {
+        console.log('🔄 Estado mudou para:', state);
+        if (state === 'CONNECTED' && !this.isReady) {
+          console.log('✅ Estado mudou para CONNECTED - marcando como pronto!');
+          this.isReady = true;
+          this.isConnected = true;
+          this.qrCodeGenerated = null;
+          this.qrCodeTimestamp = null;
+          this.reconnectAttempts = 0;
+        }
+      });
+
+      // Evento de loading screen
+      this.client.on('loading_screen', (percent: number, message: string) => {
+        console.log(`⏳ Carregando WhatsApp: ${percent}% - ${message}`);
+        if (percent === 100) {
+          setTimeout(() => this.checkReadyState(), 2000);
+        }
       });
 
       // Inicializar cliente
@@ -333,24 +371,42 @@ Se precisar reagendar ou tiver alguma dúvida, entre em contato conosco.
           console.log('💓 Keep-alive: Estado atual =', state);
 
           // Update connection status based on actual state
-          if (state === 'CONNECTED') {
-            if (!this.isConnected || !this.isReady) {
-              console.log('✅ WhatsApp reconectado automaticamente!');
-              this.isConnected = true;
-              this.isReady = true;
-              this.qrCodeGenerated = null;
-              this.qrCodeTimestamp = null;
-              this.reconnectAttempts = 0;
-            }
-          } else if (state === 'OPENING') {
-            this.isConnected = true;
-            this.isReady = false;
-          } else {
-            if (this.isConnected || this.isReady) {
-              console.log('⚠️ WhatsApp desconectado detectado via keep-alive');
-              this.isConnected = false;
+          switch (state) {
+            case 'CONNECTED':
+              if (!this.isConnected || !this.isReady) {
+                console.log('✅ WhatsApp reconectado automaticamente via keep-alive!');
+                this.isConnected = true;
+                this.isReady = true;
+                this.qrCodeGenerated = null;
+                this.qrCodeTimestamp = null;
+                this.reconnectAttempts = 0;
+              }
+              break;
+            case 'OPENING':
+            case 'PAIRING':
+              if (!this.isConnected) {
+                console.log('🔄 WhatsApp conectando via keep-alive...');
+                this.isConnected = true;
+              }
               this.isReady = false;
-            }
+              break;
+            case 'UNPAIRED':
+            case 'UNPAIRED_IDLE':
+              if (this.isConnected || this.isReady) {
+                console.log('⚠️ WhatsApp desemparelhado detectado via keep-alive');
+                this.isConnected = false;
+                this.isReady = false;
+                this.qrCodeGenerated = null;
+                this.qrCodeTimestamp = null;
+              }
+              break;
+            default:
+              if (this.isConnected || this.isReady) {
+                console.log('⚠️ WhatsApp desconectado detectado via keep-alive:', state);
+                this.isConnected = false;
+                this.isReady = false;
+              }
+              break;
           }
         } catch (error) {
           console.log('❌ Keep-alive falhou:', error);
@@ -361,7 +417,7 @@ Se precisar reagendar ou tiver alguma dúvida, entre em contato conosco.
           }
         }
       }
-    }, 15000); // Check every 15s
+    }, 10000); // Check every 10s for faster detection
   }
 
   private stopKeepAlive(): void {
@@ -399,6 +455,43 @@ Se precisar reagendar ou tiver alguma dúvida, entre em contato conosco.
     if (this.reconnectInterval) {
       clearTimeout(this.reconnectInterval);
       this.reconnectInterval = null;
+    }
+  }
+
+  private async checkReadyState(): Promise<void> {
+    if (!this.client) return;
+
+    try {
+      const state = await this.client.getState();
+      console.log('🔍 Estado atual verificado:', state);
+
+      switch (state) {
+        case 'CONNECTED':
+          if (!this.isReady) {
+            console.log('✅ WhatsApp detectado como CONNECTED - marcando como pronto!');
+            this.isReady = true;
+            this.isConnected = true;
+            this.qrCodeGenerated = null;
+            this.qrCodeTimestamp = null;
+            this.reconnectAttempts = 0;
+          }
+          break;
+        case 'OPENING':
+          console.log('🔄 WhatsApp ainda abrindo...');
+          this.isConnected = true;
+          this.isReady = false;
+          break;
+        case 'PAIRING':
+          console.log('📱 WhatsApp em processo de pareamento...');
+          this.isConnected = true;
+          this.isReady = false;
+          break;
+        default:
+          console.log('⚠️ Estado inesperado:', state);
+          break;
+      }
+    } catch (error) {
+      console.error('❌ Erro ao verificar estado:', error);
     }
   }
 
