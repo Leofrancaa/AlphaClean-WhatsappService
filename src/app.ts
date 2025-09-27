@@ -34,25 +34,48 @@ app.get("/health", (req: Request, res: Response) => {
 
 // WhatsApp status
 app.get("/whatsapp/status", (req: Request, res: Response) => {
-  const status = whatsappService.getConnectionStatus();
-  res.json(status);
+  try {
+    const status = whatsappService.getConnectionStatus();
+    res.json({
+      success: true,
+      connected: status.connected,
+      message: status.message
+    });
+  } catch (error) {
+    console.error("❌ Erro ao verificar status:", error);
+    res.status(500).json({
+      success: false,
+      connected: false,
+      message: "Erro ao verificar status do WhatsApp"
+    });
+  }
 });
 
 // Get QR Code
 app.get("/whatsapp/qr", (req: Request, res: Response) => {
-  const qrCode = whatsappService.getCurrentQRCode();
+  try {
+    const qrCode = whatsappService.getCurrentQRCode();
 
-  if (qrCode) {
-    res.json({
-      success: true,
-      qrCode: qrCode,
-      message: "QR Code available for scanning"
-    });
-  } else {
-    res.json({
+    if (qrCode) {
+      res.json({
+        success: true,
+        qrCode: qrCode,
+        message: "QR Code disponível para escaneamento"
+      });
+    } else {
+      const status = whatsappService.getConnectionStatus();
+      res.json({
+        success: false,
+        qrCode: null,
+        message: status.connected ? "WhatsApp já está conectado" : "QR Code não disponível. Tente conectar primeiro."
+      });
+    }
+  } catch (error) {
+    console.error("❌ Erro ao obter QR code:", error);
+    res.status(500).json({
       success: false,
       qrCode: null,
-      message: "QR Code not available. Try connecting first."
+      message: "Erro ao obter QR code"
     });
   }
 });
@@ -61,10 +84,16 @@ app.get("/whatsapp/qr", (req: Request, res: Response) => {
 app.post("/whatsapp/connect", async (req: Request, res: Response) => {
   try {
     await whatsappService.initialize();
-    res.json({ message: "WhatsApp initialization started" });
+    res.json({
+      success: true,
+      message: "WhatsApp inicializando... Aguarde QR code ou conexão automática."
+    });
   } catch (error) {
-    console.error("Error initializing WhatsApp:", error);
-    res.status(500).json({ error: "Failed to initialize WhatsApp" });
+    console.error("❌ Erro ao inicializar WhatsApp:", error);
+    res.status(500).json({
+      success: false,
+      message: "Erro ao inicializar WhatsApp"
+    });
   }
 });
 
