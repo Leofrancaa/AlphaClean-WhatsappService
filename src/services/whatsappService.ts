@@ -52,6 +52,11 @@ class WhatsAppService {
             '--disable-gpu',
             '--disable-web-security',
             '--disable-features=VizDisplayCompositor',
+            '--memory-pressure-off',
+            '--max-old-space-size=1024',
+            '--disable-background-timer-throttling',
+            '--disable-backgrounding-occluded-windows',
+            '--disable-renderer-backgrounding',
             '--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
           ]
         },
@@ -437,7 +442,7 @@ Se precisar reagendar ou tiver alguma dúvida, entre em contato conosco.
           }
         }
       }
-    }, 10000); // Check every 10s for faster detection
+    }, 5000); // Check every 5s for faster detection
   }
 
   private stopKeepAlive(): void {

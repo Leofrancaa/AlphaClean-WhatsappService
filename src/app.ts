@@ -110,15 +110,21 @@ app.post("/whatsapp/disconnect", async (req: Request, res: Response) => {
 
 // Send service completion notification
 app.post("/whatsapp/send-completion", async (req: Request, res: Response) => {
+  const startTime = Date.now();
   try {
+    console.log(`🚀 [${new Date().toISOString()}] WhatsApp completion request received`);
     const { clientName, clientPhone, serviceName, vehicleModel, licensePlate } = req.body;
 
+    console.log(`📋 Request data: clientName=${clientName}, clientPhone=${clientPhone}, serviceName=${serviceName}`);
+
     if (!clientName || !clientPhone || !serviceName) {
+      console.log(`❌ Missing required fields`);
       return res.status(400).json({
         error: "Missing required fields: clientName, clientPhone, serviceName"
       });
     }
 
+    console.log(`📤 Starting WhatsApp notification send...`);
     const success = await whatsappService.sendServiceCompletedNotification(
       clientName,
       clientPhone,
@@ -127,13 +133,18 @@ app.post("/whatsapp/send-completion", async (req: Request, res: Response) => {
       licensePlate
     );
 
+    const duration = Date.now() - startTime;
+    console.log(`✅ WhatsApp notification completed in ${duration}ms. Success: ${success}`);
+
     res.json({
       success,
-      message: success ? "Notification sent successfully" : "Failed to send notification"
+      message: success ? "Notification sent successfully" : "Failed to send notification",
+      duration: `${duration}ms`
     });
   } catch (error) {
-    console.error("Error sending completion notification:", error);
-    res.status(500).json({ error: "Failed to send notification" });
+    const duration = Date.now() - startTime;
+    console.error(`❌ Error sending completion notification after ${duration}ms:`, error);
+    res.status(500).json({ error: "Failed to send notification", duration: `${duration}ms` });
   }
 });
 
@@ -237,10 +248,12 @@ app.post("/whatsapp/force-reconnect", async (req: Request, res: Response) => {
 // Keep service alive (prevent Render hibernation)
 if (process.env.NODE_ENV === 'production') {
   setInterval(() => {
-    fetch(`${process.env.RENDER_EXTERNAL_URL || 'https://alphaclean-whatsappservice.onrender.com'}/health`)
+    fetch(`${process.env.RENDER_EXTERNAL_URL || 'https://alphaclean-whatsappservice.onrender.com'}/health`, {
+      signal: AbortSignal.timeout(5000) // 5s timeout
+    })
       .then(() => console.log('💓 Keep-alive ping sent'))
       .catch(() => console.log('❌ Keep-alive ping failed'));
-  }, 14 * 60 * 1000); // Every 14 minutes
+  }, 10 * 60 * 1000); // Every 10 minutes (more frequent)
 }
 
 // Start server
