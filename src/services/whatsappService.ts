@@ -68,7 +68,7 @@ class WhatsAppService {
         console.log('📱 QR Code para conectar WhatsApp:');
         qrcode.generate(qr, { small: true });
         console.log('👆 Escaneie o QR code acima com seu WhatsApp');
-        console.log('⏰ QR Code válido por aproximadamente 30 segundos');
+        console.log('⏰ QR Code válido por aproximadamente 2 minutos');
       });
 
       // Evento de conexão pronta
@@ -284,9 +284,9 @@ Se precisar reagendar ou tiver alguma dúvida, entre em contato conosco.
         message: 'WhatsApp autenticado, aguardando sincronização...'
       };
     } else if (this.qrCodeGenerated) {
-      // Check if QR code is expired (more than 45 seconds)
+      // Check if QR code is expired (more than 2 minutes)
       const qrAge = this.qrCodeTimestamp ? (Date.now() - this.qrCodeTimestamp) / 1000 : 0;
-      if (qrAge > 45) {
+      if (qrAge > 120) {
         return {
           connected: false,
           message: 'QR Code expirado. Clique em "Conectar WhatsApp" para gerar novo.'
