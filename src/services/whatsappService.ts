@@ -12,9 +12,26 @@ class WhatsAppService {
   private isConnected: boolean = false;
   private isReady: boolean = false;
   private qrCodeGenerated: string | null = null;
+  private qrCodeTimestamp: number | null = null;
+  private isInitializing: boolean = false;
+  private reconnectAttempts: number = 0;
+  private maxReconnectAttempts: number = 5;
+  private reconnectInterval: NodeJS.Timeout | null = null;
+  private keepAliveInterval: NodeJS.Timeout | null = null;
 
   async initialize(): Promise<void> {
+    if (this.isInitializing) {
+      console.log('⚠️ WhatsApp já está sendo inicializado...');
+      return;
+    }
+
+    if (this.isConnected) {
+      console.log('✅ WhatsApp já está conectado!');
+      return;
+    }
+
     console.log('🔄 Inicializando serviço WhatsApp...');
+    this.isInitializing = true;
 
     try {
       // Criar cliente WhatsApp com autenticação local
@@ -24,6 +41,7 @@ class WhatsAppService {
         }),
         puppeteer: {
           headless: true,
+          timeout: 120000,
           args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
@@ -31,17 +49,26 @@ class WhatsAppService {
             '--disable-accelerated-2d-canvas',
             '--no-first-run',
             '--no-zygote',
-            '--disable-gpu'
+            '--disable-gpu',
+            '--disable-web-security',
+            '--disable-features=VizDisplayCompositor',
+            '--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
           ]
-        }
+        },
+        qrMaxRetries: 5,
+        qrTimeoutMs: 30000,
+        session: 'whatsapp-session'
       });
 
       // Evento QR Code
       this.client.on('qr', (qr: string) => {
         this.qrCodeGenerated = qr;
+        this.qrCodeTimestamp = Date.now();
+        this.reconnectAttempts = 0;
         console.log('📱 QR Code para conectar WhatsApp:');
         qrcode.generate(qr, { small: true });
         console.log('👆 Escaneie o QR code acima com seu WhatsApp');
+        console.log('⏰ QR Code válido por aproximadamente 30 segundos');
       });
 
       // Evento de conexão pronta
@@ -49,12 +76,19 @@ class WhatsAppService {
         console.log('✅ WhatsApp conectado com sucesso!');
         this.isConnected = true;
         this.isReady = true;
+        this.isInitializing = false;
+        this.reconnectAttempts = 0;
+        this.qrCodeGenerated = null;
+        this.qrCodeTimestamp = null;
+        this.clearReconnectInterval();
+        this.startKeepAlive();
       });
 
       // Evento de autenticação bem-sucedida
       this.client.on('authenticated', () => {
         console.log('🔐 WhatsApp autenticado com sucesso!');
         this.isConnected = true;
+        this.isInitializing = false;
       });
 
       // Evento de falha de autenticação
@@ -62,6 +96,7 @@ class WhatsAppService {
         console.error('❌ Falha na autenticação WhatsApp:', msg);
         this.isConnected = false;
         this.isReady = false;
+        this.isInitializing = false;
       });
 
       // Evento de desconexão
@@ -69,6 +104,17 @@ class WhatsAppService {
         console.log('❌ WhatsApp desconectado:', reason);
         this.isConnected = false;
         this.isReady = false;
+        this.isInitializing = false;
+        this.qrCodeGenerated = null;
+        this.qrCodeTimestamp = null;
+        this.stopKeepAlive();
+
+        // Tentar reconectar automaticamente
+        if (this.reconnectAttempts < this.maxReconnectAttempts) {
+          this.scheduleReconnect();
+        } else {
+          console.log('❌ Máximo de tentativas de reconexão atingido');
+        }
       });
 
       // Evento de mensagem recebida (opcional - para logs)
@@ -253,11 +299,69 @@ Se precisar reagendar ou tiver alguma dúvida, entre em contato conosco.
   async disconnect(): Promise<void> {
     if (this.client) {
       console.log('🔌 Desconectando WhatsApp...');
+      this.clearReconnectInterval();
+      this.stopKeepAlive();
       await this.client.destroy();
       this.client = null;
       this.isConnected = false;
       this.isReady = false;
       this.qrCodeGenerated = null;
+      this.qrCodeTimestamp = null;
+      this.reconnectAttempts = 0;
+    }
+  }
+
+  private startKeepAlive(): void {
+    this.stopKeepAlive();
+    this.keepAliveInterval = setInterval(async () => {
+      if (this.isReady && this.client) {
+        try {
+          await this.client.getState();
+          console.log('💓 Keep-alive: Conexão ativa');
+        } catch (error) {
+          console.log('❌ Keep-alive falhou:', error);
+          this.isConnected = false;
+          this.isReady = false;
+        }
+      }
+    }, 30000);
+  }
+
+  private stopKeepAlive(): void {
+    if (this.keepAliveInterval) {
+      clearInterval(this.keepAliveInterval);
+      this.keepAliveInterval = null;
+    }
+  }
+
+  private scheduleReconnect(): void {
+    this.reconnectAttempts++;
+    const delay = Math.min(this.reconnectAttempts * 5000, 30000);
+
+    console.log(`🔄 Tentativa de reconexão ${this.reconnectAttempts}/${this.maxReconnectAttempts} em ${delay/1000}s...`);
+
+    this.clearReconnectInterval();
+    this.reconnectInterval = setTimeout(async () => {
+      if (!this.isConnected && this.client) {
+        try {
+          console.log('🔄 Reinicializando cliente WhatsApp...');
+          await this.client.destroy();
+          this.client = null;
+          await this.initialize();
+        } catch (error) {
+          console.error('❌ Erro na reconexão:', error);
+          if (this.reconnectAttempts < this.maxReconnectAttempts) {
+            this.scheduleReconnect();
+          }
+        }
+      }
+    }, delay);
+  }
+
+  private clearReconnectInterval(): void {
+    if (this.reconnectInterval) {
+      clearTimeout(this.reconnectInterval);
+      this.reconnectInterval = null;
     }
   }
 

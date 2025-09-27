@@ -162,16 +162,7 @@ app.post("/whatsapp/test", async (req: Request, res: Response) => {
 app.listen(PORT, () => {
   console.log(`🚀 AlphaClean WhatsApp Service running on port ${PORT}`);
   console.log(`🔗 Main API URL: ${process.env.MAIN_API_URL}`);
-
-  // Auto-initialize WhatsApp service
-  setTimeout(async () => {
-    try {
-      console.log("🔄 Auto-initializing WhatsApp service...");
-      await whatsappService.initialize();
-    } catch (error) {
-      console.error("❌ Failed to auto-initialize WhatsApp:", error);
-    }
-  }, 2000);
+  console.log(`📱 WhatsApp service ready. Use /whatsapp/connect to initialize.`);
 });
 
 export default app;
