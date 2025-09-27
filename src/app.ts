@@ -1,5 +1,5 @@
 import "dotenv/config";
-import express from "express";
+import express, { Request, Response } from "express";
 import cors from "cors";
 import morgan from "morgan";
 import helmet from "helmet";
@@ -20,7 +20,7 @@ app.use(morgan("combined"));
 app.use(express.json());
 
 // Health check
-app.get("/health", (req, res) => {
+app.get("/health", (req: Request, res: Response) => {
   res.json({
     status: "ok",
     service: "AlphaClean WhatsApp Service",
@@ -29,13 +29,13 @@ app.get("/health", (req, res) => {
 });
 
 // WhatsApp status
-app.get("/whatsapp/status", (req, res) => {
+app.get("/whatsapp/status", (req: Request, res: Response) => {
   const status = whatsappService.getConnectionStatus();
   res.json(status);
 });
 
 // Connect WhatsApp
-app.post("/whatsapp/connect", async (req, res) => {
+app.post("/whatsapp/connect", async (req: Request, res: Response) => {
   try {
     await whatsappService.initialize();
     res.json({ message: "WhatsApp initialization started" });
@@ -46,7 +46,7 @@ app.post("/whatsapp/connect", async (req, res) => {
 });
 
 // Disconnect WhatsApp
-app.post("/whatsapp/disconnect", async (req, res) => {
+app.post("/whatsapp/disconnect", async (req: Request, res: Response) => {
   try {
     await whatsappService.disconnect();
     res.json({ message: "WhatsApp disconnected" });
@@ -57,7 +57,7 @@ app.post("/whatsapp/disconnect", async (req, res) => {
 });
 
 // Send service completion notification
-app.post("/whatsapp/send-completion", async (req, res) => {
+app.post("/whatsapp/send-completion", async (req: Request, res: Response) => {
   try {
     const { clientName, clientPhone, serviceName, vehicleModel, licensePlate } = req.body;
 
@@ -86,7 +86,7 @@ app.post("/whatsapp/send-completion", async (req, res) => {
 });
 
 // Send reminder notification
-app.post("/whatsapp/send-reminder", async (req, res) => {
+app.post("/whatsapp/send-reminder", async (req: Request, res: Response) => {
   try {
     const { clientName, clientPhone, serviceName, date, time } = req.body;
 
@@ -115,7 +115,7 @@ app.post("/whatsapp/send-reminder", async (req, res) => {
 });
 
 // Send test message
-app.post("/whatsapp/test", async (req, res) => {
+app.post("/whatsapp/test", async (req: Request, res: Response) => {
   try {
     const { phoneNumber } = req.body;
 
