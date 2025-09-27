@@ -187,11 +187,29 @@ app.post("/whatsapp/test", async (req: Request, res: Response) => {
   }
 });
 
+// Keep service alive (prevent Render hibernation)
+if (process.env.NODE_ENV === 'production') {
+  setInterval(() => {
+    fetch(`${process.env.RENDER_EXTERNAL_URL || 'https://alphaclean-whatsappservice.onrender.com'}/health`)
+      .then(() => console.log('💓 Keep-alive ping sent'))
+      .catch(() => console.log('❌ Keep-alive ping failed'));
+  }, 14 * 60 * 1000); // Every 14 minutes
+}
+
 // Start server
 app.listen(PORT, () => {
   console.log(`🚀 AlphaClean WhatsApp Service running on port ${PORT}`);
   console.log(`🔗 Main API URL: ${process.env.MAIN_API_URL}`);
   console.log(`📱 WhatsApp service ready. Use /whatsapp/connect to initialize.`);
+
+  // Initialize WhatsApp on startup in production
+  if (process.env.NODE_ENV === 'production') {
+    setTimeout(() => {
+      whatsappService.initialize().catch(err =>
+        console.log('⚠️ Failed to auto-initialize WhatsApp:', err)
+      );
+    }, 5000); // Wait 5s after server start
+  }
 });
 
 export default app;

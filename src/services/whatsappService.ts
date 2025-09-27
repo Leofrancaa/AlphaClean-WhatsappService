@@ -273,20 +273,33 @@ Se precisar reagendar ou tiver alguma dúvida, entre em contato conosco.
   }
 
   getConnectionStatus(): { connected: boolean; message: string } {
-    if (this.isReady) {
+    if (this.isReady && this.isConnected) {
       return {
         connected: true,
         message: 'WhatsApp conectado e pronto para uso'
       };
-    } else if (this.isConnected) {
+    } else if (this.isConnected && !this.isReady) {
       return {
         connected: false,
-        message: 'WhatsApp conectado, mas ainda não está pronto'
+        message: 'WhatsApp autenticado, aguardando sincronização...'
       };
     } else if (this.qrCodeGenerated) {
+      // Check if QR code is expired (more than 45 seconds)
+      const qrAge = this.qrCodeTimestamp ? (Date.now() - this.qrCodeTimestamp) / 1000 : 0;
+      if (qrAge > 45) {
+        return {
+          connected: false,
+          message: 'QR Code expirado. Clique em "Conectar WhatsApp" para gerar novo.'
+        };
+      }
       return {
         connected: false,
         message: 'QR Code gerado. Escaneie para conectar.'
+      };
+    } else if (this.isInitializing) {
+      return {
+        connected: false,
+        message: 'Inicializando WhatsApp... Aguarde.'
       };
     } else {
       return {
