@@ -2,11 +2,13 @@
   "name": "alphaclean-whatsapp-service",
   "version": "1.0.0",
   "description": "Serviço WhatsApp separado para Alpha Clean",
-  "main": "dist/app.js",
+  "main": "dist/src/app.js",
   "scripts": {
     "build": "tsc",
-    "start": "node dist/app.js",
-    "dev": "ts-node-dev --respawn --transpile-only src/app.ts"
+    "start": "node dist/src/app.js",
+    "dev": "ts-node-dev --respawn --transpile-only src/app.ts",
+    "postbuild": "echo 'Build completed successfully'",
+    "prestart": "npm run build"
   },
   "dependencies": {
     "@types/cors": "^2.8.13",
