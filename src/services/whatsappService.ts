@@ -242,16 +242,36 @@ class WhatsAppService {
     }
 
     // Corrigir formato brasileiro: remover o 9 extra se for celular brasileiro
-    if (cleanPhone.startsWith('55') && cleanPhone.length === 13) {
-      // Números brasileiros com 13 dígitos (55 + 2 DDD + 9 + 8 números)
-      const ddd = cleanPhone.substring(2, 4);
-      const ninthDigit = cleanPhone.substring(4, 5);
-      const phoneNumber = cleanPhone.substring(5);
+    if (cleanPhone.startsWith('55')) {
+      if (cleanPhone.length === 13) {
+        // Números brasileiros com 13 dígitos (55 + 2 DDD + 9 + 8 números)
+        const ddd = cleanPhone.substring(2, 4);
+        const ninthDigit = cleanPhone.substring(4, 5);
+        const phoneNumber = cleanPhone.substring(5);
 
-      // Se o 5º dígito é 9 (nono dígito), remover para compatibilidade WhatsApp
-      if (ninthDigit === '9' && phoneNumber.length === 8) {
-        cleanPhone = '55' + ddd + phoneNumber;
-        console.log(`📱 Removido 9º dígito brasileiro: "${cleanPhone}"`);
+        // Se o 5º dígito é 9 (nono dígito), remover para compatibilidade WhatsApp
+        if (ninthDigit === '9' && phoneNumber.length === 8) {
+          cleanPhone = '55' + ddd + phoneNumber;
+          console.log(`📱 Removido 9º dígito brasileiro (formato 13): "${cleanPhone}"`);
+        }
+      } else if (cleanPhone.length === 12) {
+        // Números brasileiros com 12 dígitos (55 + 2 DDD + 8 números) - já no formato correto
+        console.log(`📱 Número brasileiro já no formato correto (12 dígitos): "${cleanPhone}"`);
+      } else if (cleanPhone.length === 11) {
+        // Número brasileiro sem código do país, verificar se tem 9º dígito
+        const ddd = cleanPhone.substring(0, 2);
+        const ninthDigit = cleanPhone.substring(2, 3);
+        const phoneNumber = cleanPhone.substring(3);
+
+        if (ninthDigit === '9' && phoneNumber.length === 8) {
+          // Remover 9º dígito e adicionar código do país
+          cleanPhone = '55' + ddd + phoneNumber;
+          console.log(`📱 Removido 9º dígito brasileiro (formato 11): "${cleanPhone}"`);
+        } else {
+          // Apenas adicionar código do país
+          cleanPhone = '55' + cleanPhone;
+          console.log(`📱 Adicionado código do país (formato 11): "${cleanPhone}"`);
+        }
       }
     }
 
