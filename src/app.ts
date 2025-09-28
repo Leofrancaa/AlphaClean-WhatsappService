@@ -3,6 +3,9 @@ import express, { Request, Response } from "express";
 import cors from "cors";
 import morgan from "morgan";
 import helmet from "helmet";
+import https from "https";
+import fs from "fs";
+import path from "path";
 
 // Services
 import whatsappService from "./services/whatsappService";
@@ -16,7 +19,9 @@ app.use(cors({
   origin: [
     process.env.MAIN_API_URL || "http://localhost:3001",
     "https://alpha-clean-pearl.vercel.app",
-    "http://localhost:3000"
+    "https://alpha-clean-backend-reservation.vercel.app",
+    "http://localhost:3000",
+    "http://localhost:3001"
   ],
   credentials: true
 }));
@@ -245,10 +250,10 @@ app.post("/whatsapp/force-reconnect", async (req: Request, res: Response) => {
   }
 });
 
-// Keep service alive (prevent Render hibernation)
-if (process.env.NODE_ENV === 'production') {
+// Keep service alive (only for Render, not needed locally)
+if (process.env.NODE_ENV === 'production' && process.env.RENDER_EXTERNAL_URL) {
   setInterval(() => {
-    fetch(`${process.env.RENDER_EXTERNAL_URL || 'https://alphaclean-whatsappservice.onrender.com'}/health`, {
+    fetch(`${process.env.RENDER_EXTERNAL_URL}/health`, {
       signal: AbortSignal.timeout(5000) // 5s timeout
     })
       .then(() => console.log('💓 Keep-alive ping sent'))
@@ -256,20 +261,41 @@ if (process.env.NODE_ENV === 'production') {
   }, 10 * 60 * 1000); // Every 10 minutes (more frequent)
 }
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`🚀 AlphaClean WhatsApp Service running on port ${PORT}`);
-  console.log(`🔗 Main API URL: ${process.env.MAIN_API_URL}`);
-  console.log(`📱 WhatsApp service ready. Use /whatsapp/connect to initialize.`);
+// Start server with HTTPS
+const sslPath = path.join(__dirname, '..', 'ssl');
+const useHttps = fs.existsSync(path.join(sslPath, 'cert.pem')) && fs.existsSync(path.join(sslPath, 'key.pem'));
 
-  // Initialize WhatsApp on startup in production
-  if (process.env.NODE_ENV === 'production') {
+if (useHttps) {
+  const httpsOptions = {
+    key: fs.readFileSync(path.join(sslPath, 'key.pem')),
+    cert: fs.readFileSync(path.join(sslPath, 'cert.pem'))
+  };
+
+  https.createServer(httpsOptions, app).listen(PORT, () => {
+    console.log(`🔒 AlphaClean WhatsApp Service running on HTTPS port ${PORT}`);
+    console.log(`🔗 Main API URL: ${process.env.MAIN_API_URL}`);
+    console.log(`📱 WhatsApp service ready. Use /whatsapp/connect to initialize.`);
+
+    // Initialize WhatsApp on startup
     setTimeout(() => {
       whatsappService.initialize().catch(err =>
         console.log('⚠️ Failed to auto-initialize WhatsApp:', err)
       );
-    }, 5000); // Wait 5s after server start
-  }
-});
+    }, 3000);
+  });
+} else {
+  app.listen(PORT, () => {
+    console.log(`🚀 AlphaClean WhatsApp Service running on HTTP port ${PORT}`);
+    console.log(`🔗 Main API URL: ${process.env.MAIN_API_URL}`);
+    console.log(`📱 WhatsApp service ready. Use /whatsapp/connect to initialize.`);
+
+    // Initialize WhatsApp on startup
+    setTimeout(() => {
+      whatsappService.initialize().catch(err =>
+        console.log('⚠️ Failed to auto-initialize WhatsApp:', err)
+      );
+    }, 3000);
+  });
+}
 
 export default app;
