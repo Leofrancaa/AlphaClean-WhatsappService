@@ -1,0 +1,7 @@
+{
+  "scripts": {
+    "dev:local": "cross-env NODE_ENV=development ts-node-dev --respawn --transpile-only src/app.ts",
+    "dev:with-env": "cross-env NODE_ENV=development && npm run dev:local",
+    "start:local": "node dist/app.js"
+  }
+}

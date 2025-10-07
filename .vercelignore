@@ -1,0 +1,10 @@
+node_modules
+.env
+.env.local
+*.log
+dist
+ssl
+.wwebjs_auth
+.wwebjs_cache
+README.md
+package-scripts.json
